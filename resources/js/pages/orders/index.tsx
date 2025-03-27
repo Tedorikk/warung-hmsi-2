@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -20,10 +20,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Edit, Eye, Trash2 } from 'lucide-react';
-import { Product } from '@/interfaces/product';
-import { ProductCategory } from '@/interfaces/product-category';
+import { Search, Eye, Trash2 } from 'lucide-react';
+import { Order } from '@/interfaces/order';
+import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from '@/components/ui/pagination';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -35,101 +34,124 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { 
-  Pagination, 
-  PaginationContent, 
-  PaginationItem, 
-  PaginationPrevious, 
-  PaginationNext, 
-  PaginationLink 
-} from '@/components/ui/pagination';
+import { Badge } from '@/components/ui/badge';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
-    title: 'Products',
-    href: '/products',
+    title: 'Orders',
+    href: '/orders',
   },
 ];
 
 interface IndexProps {
-  products: {
-    data: Product[];
+  orders: {
+    data: Order[];
     current_page: number;
     last_page: number;
   };
-  categories: ProductCategory[];
   filters: {
     search?: string;
-    category_id?: string;
-    is_active?: string;
+    status?: string;
+    payment_status?: string;
     per_page?: string;
   };
 }
 
-export default function Index({ products, categories, filters }: IndexProps) {
+export default function Index({ orders, filters }: IndexProps) {
   const [searchTerm, setSearchTerm] = useState(filters?.search || '');
-  const [categoryFilter, setCategoryFilter] = useState(filters?.category_id || 'all');
-  const [isActive] = useState(filters?.is_active || '');
+  const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState(filters?.payment_status || 'all');
   const [perPage, setPerPage] = useState(filters?.per_page || '10');
-  
+
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     applyFilters();
   };
-  
-  const handleCategoryChange = (value: string) => {
-    setCategoryFilter(value);
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
     applyFilters(value);
   };
-  
+
+  const handlePaymentStatusChange = (value: string) => {
+    setPaymentStatusFilter(value);
+    applyFilters(undefined, value);
+  };
+
   const handlePerPageChange = (value: string) => {
     setPerPage(value);
     applyFilters();
   };
-  
-  const applyFilters = useCallback((categoryValue?: string) => {
-    router.get('/products', {
+
+  const applyFilters = (status?: string, paymentStatus?: string) => {
+    router.get('/orders', {
       search: searchTerm || undefined,
-      category_id: (categoryValue || categoryFilter) === 'all' ? undefined : (categoryValue || categoryFilter),
-      is_active: isActive || undefined,
+      status: (status || statusFilter) === 'all' ? undefined : (status || statusFilter),
+      payment_status: (paymentStatus || paymentStatusFilter) === 'all' ? undefined : (paymentStatus || paymentStatusFilter),
       per_page: perPage,
     }, {
       preserveState: true,
       replace: true,
     });
-  }, [searchTerm, categoryFilter, isActive, perPage]);
-  
+  };
+
   const handleDelete = (id: number) => {
-    router.delete(`/products/${id}`, {
+    router.delete(`/orders/${id}`, {
       onSuccess: () => {
         // Success handling can be added here if needed
       },
     });
   };
   
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline">Pending</Badge>;
+      case 'processing':
+        return <Badge variant="secondary">Processing</Badge>;
+      case 'shipped':
+        return <Badge variant="default">Shipped</Badge>;
+      case 'delivered':
+        return <Badge variant="secondary">Delivered</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+  
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline">Pending</Badge>;
+      case 'paid':
+        return <Badge variant="secondary">Paid</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>;
+      case 'refunded':
+        return <Badge variant="secondary">Refunded</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Products" />
+      <Head title="Orders" />
       <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
         <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border p-6 md:min-h-min">
           <div className="flex flex-col space-y-4">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <h1 className="text-2xl font-bold tracking-tight">Products</h1>
-              <Button 
-                onClick={() => router.visit(`/products/create`)}
-                className="md:self-end"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Product
-              </Button>
+              <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
             </div>
-            
+
             {/* Filters Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <form onSubmit={handleSearch} className="flex w-full items-center space-x-2">
                 <Input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search orders..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full"
@@ -138,73 +160,65 @@ export default function Index({ products, categories, filters }: IndexProps) {
                   <Search className="h-4 w-4" />
                 </Button>
               </form>
-              <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="SelectTrigger">
-                  <SelectValue placeholder="Filter Berdasarkan Kategori" />
+
+              <Select value={statusFilter} onValueChange={handleStatusChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories?.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={paymentStatusFilter} onValueChange={handlePaymentStatusChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Payment Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Payment Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            {/* Products Table */}
+            {/* Orders Table */}
             <Table>
-              <TableCaption>A list of your products.</TableCaption>
+              <TableCaption>A list of all orders.</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Image</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Variants</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.data?.length > 0 ? (
-                  products.data.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        {product.image ? (
-                          <img 
-                            src={product.image} 
-                            alt={product.name} 
-                            className="h-10 w-10 rounded-md object-cover"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-md bg-gray-200 flex items-center justify-center text-gray-500">
-                            No img
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.category?.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={product.is_active ? "default" : "secondary"}>
-                          {product.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{product.variants?.length || 0}</TableCell>
+                {orders.data.length > 0 ? (
+                  orders.data.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">#{order.id}</TableCell>
+                      <TableCell>{order.user?.name || 'Guest'}</TableCell>
+                      <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>${Number(order.total_amount).toFixed(2)}</TableCell>
+                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell>{getPaymentStatusBadge(order.payment_status)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => router.visit(`/products/${product.id}/edit`)}
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => router.visit(`/products/${product.id}`)}
+                            onClick={() => router.visit(`/orders/${order.id}`)}
                             title="View"
                           >
                             <Eye className="h-4 w-4" />
@@ -224,18 +238,13 @@ export default function Index({ products, categories, filters }: IndexProps) {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This will permanently delete the product "{product.name}".
-                                  {product.variants && product.variants.length > 0 && (
-                                    <span className="font-semibold text-red-500 block mt-2">
-                                      Warning: This product has {product.variants.length} variants associated with it.
-                                    </span>
-                                  )}
+                                  This will permanently delete Order #{order.id}.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction 
-                                  onClick={() => handleDelete(product.id)}
+                                  onClick={() => handleDelete(order.id)}
                                   className="bg-red-500 hover:bg-red-600"
                                 >
                                   Delete
@@ -249,45 +258,46 @@ export default function Index({ products, categories, filters }: IndexProps) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      No products found. Try adjusting your filters or add a new product.
+                    <TableCell colSpan={7} className="text-center py-8">
+                      No orders found. Try adjusting your filters or create a new order.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between space-x-2 py-4">
+{/* Pagination */}
+<div className="flex items-center justify-between space-x-2 py-4">
               <Pagination>
                 <PaginationContent>
-                  {products.current_page > 1 && (
+                  {orders.current_page > 1 && (
                     <PaginationItem>
-                      <PaginationPrevious href={`/products?page=${products.current_page - 1}&per_page=${perPage}&search=${searchTerm}&category_id=${categoryFilter}&is_active=${isActive}`} />
+                      <PaginationPrevious href={`/orders?page=${orders.current_page - 1}&per_page=${perPage}&search=${searchTerm}&status=${statusFilter}&payment_status=${paymentStatusFilter}`} />
                     </PaginationItem>
                   )}
-                  {[...Array(products.last_page)].map((_, i) => (
+                  {[...Array(orders.last_page)].map((_, i) => (
                     <PaginationItem key={i}>
-                      <PaginationLink href={`/products?page=${i + 1}&per_page=${perPage}&search=${searchTerm}&category_id=${categoryFilter}&is_active=${isActive}`}>
+                      <PaginationLink href={`/orders?page=${i + 1}&per_page=${perPage}&search=${searchTerm}&status=${statusFilter}&payment_status=${paymentStatusFilter}`}>
                         {i + 1}
                       </PaginationLink>
                     </PaginationItem>
                   ))}
-                  {products.current_page < products.last_page && (
+                  {orders.current_page < orders.last_page && (
                     <PaginationItem>
-                      <PaginationNext href={`/products?page=${products.current_page + 1}&per_page=${perPage}&search=${searchTerm}&category_id=${categoryFilter}&is_active=${isActive}`} />
+                      <PaginationNext href={`/orders?page=${orders.current_page + 1}&per_page=${perPage}&search=${searchTerm}&status=${statusFilter}&payment_status=${paymentStatusFilter}`} />
                     </PaginationItem>
                   )}
                 </PaginationContent>
               </Pagination>
+
+              {/* Per Page Selector */}
               <div className="flex items-center space-x-2">
-                <span className="text-sm">Show</span>
+                <span className='text-sm'>Show</span>
                 <Select
-                  value={perPage}
-                  onValueChange={handlePerPageChange}
+                  value={perPage.toString()}
+                  onValueChange={(value) => handlePerPageChange(value)}
                 >
                   <SelectTrigger className="w-[70px]">
-                    <SelectValue placeholder="10" />
+                    <SelectValue placeholder={perPage.toString()} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="10">10</SelectItem>
@@ -295,9 +305,10 @@ export default function Index({ products, categories, filters }: IndexProps) {
                     <SelectItem value="50">50</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-sm">per page</p>
+                <p className='text-sm'>per page</p>
               </div>
             </div>
+
           </div>
         </div>
       </div>

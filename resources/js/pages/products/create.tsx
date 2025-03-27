@@ -130,6 +130,7 @@ export default function Create({ categories }: CreateProps) {
   const getNestedError = (path: string) => {
     return (errors as unknown as FormErrors)[path];
   };
+  
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>

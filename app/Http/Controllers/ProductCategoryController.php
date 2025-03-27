@@ -16,20 +16,23 @@ class ProductCategoryController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search');
+        $perPage = $request->input('per_page', 10); // Default to 10 items per page
         
         $categories = ProductCategory::query()
-            ->withCount('products')  // Tambahkan ini untuk menghitung jumlah produk
+            ->withCount('products')
             ->when($search, function($query, $search) {
                 return $query->where('name', 'LIKE', "%{$search}%")
                              ->orWhere('slug', 'LIKE', "%{$search}%");
             })
             ->latest()
-            ->get();
+            ->paginate($perPage)
+            ->withQueryString();
         
         return Inertia::render('product-categories/index', [
             'categories' => $categories,
             'filters' => [
                 'search' => $search,
+                'per_page' => $perPage,
             ]
         ]);
     }

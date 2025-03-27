@@ -31,10 +31,11 @@ class ProductController extends Controller
             $query->where('is_active', $request->is_active);
         }
         
-        $products = $query->latest()->get();
+        $perPage = $request->input('per_page', 10);
+        $products = $query->latest()->paginate($perPage)->withQueryString();
         
         // Transform product data to include proper image URL
-        $products = $products->map(function ($product) {
+        $products->getCollection()->transform(function ($product) {
             if ($product->image) {
                 $product->image = Storage::url($product->image);
             }
@@ -46,7 +47,8 @@ class ProductController extends Controller
         return Inertia::render('products/index', [
             'products' => $products,
             'categories' => $categories,
-            'filters' => $request->only(['search', 'category_id', 'is_active'])
+            'filters' => $request->only(['search', 'category_id', 'is_active']),
+            'perPage' => $perPage,
         ]);
     }
 
@@ -185,5 +187,17 @@ class ProductController extends Controller
         $product->variants()->delete();
         $product->delete();
         return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
+    }
+
+    public function show(Product $product): Response
+    {
+        $product->load(['variants', 'category']);
+        
+        // Add image URL
+        if ($product->image) {
+            $product->image = Storage::url($product->image);
+        }
+        
+        return Inertia::render('products/show', compact('product'));
     }
 }

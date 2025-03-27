@@ -27,6 +27,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -35,17 +50,23 @@ const breadcrumbs: BreadcrumbItem[] = [
   },
 ];
 
-
-
 interface IndexProps {
-  categories: ProductCategory[];
+  categories: {
+    data: ProductCategory[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
   filters: {
     search?: string;
+    per_page?: number;
   };
 }
 
 export default function Index({ categories, filters }: IndexProps) {
   const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+  const [perPage, setPerPage] = useState(filters?.per_page || 10);
   
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,16 +76,17 @@ export default function Index({ categories, filters }: IndexProps) {
   const applyFilters = useCallback(() => {
     router.get('/product-categories', {
       search: searchTerm || undefined,
+      per_page: perPage,
     }, {
       preserveState: true,
       replace: true,
     });
-  }, [searchTerm]);
+  }, [searchTerm, perPage]);
   
   const handleDelete = (id: number) => {
     router.delete(`/product-categories/${id}`, {
       onSuccess: () => {
-        
+        // Handle success if needed
       },
     });
   };
@@ -115,8 +137,8 @@ export default function Index({ categories, filters }: IndexProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories?.length > 0 ? (
-                  categories.map((category) => (
+                {categories.data.length > 0 ? (
+                  categories.data.map((category) => (
                     <TableRow key={category.id}>
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>{category.slug}</TableCell>
@@ -191,6 +213,50 @@ export default function Index({ categories, filters }: IndexProps) {
                 )}
               </TableBody>
             </Table>
+
+            <div className="flex items-center justify-between space-x-2 py-4">
+              <Pagination>
+                <PaginationContent>
+                  {categories.current_page > 1 && (
+                    <PaginationItem>
+                      <PaginationPrevious href={`/product-categories?page=${categories.current_page - 1}&per_page=${perPage}&search=${searchTerm}`} />
+                    </PaginationItem>
+                  )}
+                  {[...Array(categories.last_page)].map((_, i) => (
+                    <PaginationItem key={i}>
+                      <PaginationLink href={`/product-categories?page=${i + 1}&per_page=${perPage}&search=${searchTerm}`}>
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  {categories.current_page < categories.last_page && (
+                    <PaginationItem>
+                      <PaginationNext href={`/product-categories?page=${categories.current_page + 1}&per_page=${perPage}&search=${searchTerm}`} />
+                    </PaginationItem>
+                  )}
+                </PaginationContent>
+              </Pagination>
+              <div className="flex items-center space-x-2">
+                <span className='text-sm'>Show</span>
+                <Select
+                  value={perPage.toString()}
+                  onValueChange={(value) => {
+                    setPerPage(Number(value));
+                    applyFilters();
+                  }}
+                >
+                  <SelectTrigger className="w-[70px]">
+                    <SelectValue placeholder="10" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className='text-sm'>per page</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
