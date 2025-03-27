@@ -9,6 +9,7 @@ use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -16,9 +17,7 @@ Route::get('/', function () {
 
 // Rute khusus admin
 Route::middleware(['auth', 'verified', RedirectIfNotAdmin::class])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
     // Products Categories
     Route::resource('product-categories', ProductCategoryController::class)->except(['show']);
     // Products
